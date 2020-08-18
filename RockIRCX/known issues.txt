@@ -1,0 +1,4 @@
+Known issues:
+
+1) Owner-drawn list box shows messed up icons when drawing in plain sight,
+but as soon as it goes offscreen it becomes normal.

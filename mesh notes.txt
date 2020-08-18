@@ -1,0 +1,157 @@
+Mesh overview
+-------------
+
+1) Initial network setup
+2) Maintaining server connections
+3) Synchronization of servers
+4) Releasing server connections
+5) Users (States of, relevant messages)
+6) Registered nicknames/channel conflicts
+7) MESH command
+
+
+1) Initial network setup
+
+All servers which are part of the network have identical network-wide parameters.
+
+Conflicts are resolved by using an agreed upon network-wide algorithm from a list. The algorithm is randomized to deter exploitation.
+
+Example algorithms:
+
+- Lowest ID recieves priority
+- Highest ID recieves priority
+- Same with even/odd/prime numbers
+ 
+All servers have a master list of all other servers. Inbound/outbound connection types are ignored, as both servers will attempt an outbound connection to each other (Mesh networks have an extra handshake to allow this)
+
+Mesh network status:
+- Offline (Not connecting to any other nodes)
+- Initializing (Connecting/accepting connections)
+- Partially meshed (Connected to all servers in list)
+- Fully meshed (All servers in network are connected to all others)
+
+2) Maintaining server connections
+
+Every server will have an independent keepalive ping (if no server-server commands happen) to every other server. The inactive server will be disconnected once a certain percentage of active servers report ping timeouts. 
+This percentage is a network-wide variable called the inactivity threshold, which is # of servers with timeout / total servers.
+
+In all scenarios, servers 1, 2, 3 and 4 are in an active mesh.
+
+Scenario #1 - Inactivity threshold = 25%
+
+Server 4 gets packeted and no longer responds to pings.
+Server 3 is the first to mark 4 as timed out and determines inactivity threshold has been reached (1 timed out / 4 total = 25%).
+3 disconnects 4 from the network, and issues QUIT messages on behalf of all users connected to 4.
+Server 3 drops 4 and sends MESH SERVERTIMEOUT command to 1 and 2.
+If 3 recieves MESH SERVERTIMEOUTs from 1 or 2 regarding server 4, it will silently ignore them.
+
+Scenario #2 - Inactivity threshold = 50%
+
+Server 4 gets packeted and no longer responds to pings.
+Server 3 marks 4 as timed out and sends MESH SERVERTIMEOUT to network (except 4)
+All servers have now marked Server 3 with a timeout counter equal to 1
+Server 2 marks 4 as timed out:
+	- timeout counter = 1: 
+		- Counter now = 2 and threshold reached (2 timed out / 4 total = 50%)
+		- Send MESH SERVERTIMEOUT to all servers except 4.
+	- timeout counter = 0:
+		- Send MESH SERVERTIMEOUT to all servers except 4.
+Server 2 will now disconnect from 4, and issue QUIT message on behalf of all users connected to 4.
+Servers 1 and 3 recieve MESH SERVERTIMEOUT messages from 2 and both determine IT has been reached.
+
+3) Synchronization of servers
+
+In all cases of server desync, the operator can kill the channel or users effected. However, we will try to prevent this as much as possible.
+
+For this chat server synchronization issues will be resolved by intelligently detecting cases where synchronization issues have occured. Take the following:
+
+Servers 1, 2, 3 and 4 are all meshed. Users from 1 and 4 kick each other at the same time, creating a race condition:
+
+1) Both servers accept the kick and propigate it throughout the network.
+2) Servers 1 and 2 recieved the kick from server 1 first, and servers 3 and 4 recieved the kick from server 4 first.
+3) Using agreed-upon network-wide algorithm, all servers decide that the user from server #1 wins the kick.
+4) Each server is responsible for sending a message to get all users back on the same page.
+5) Servers 1 and 2 get kick message from server 4. The message is interpreted as a sync alert and using the algorithm, determine to ignore it.
+6) Servers 3 and 4 get kick message from server 1. The message is interpreted as a sync alert and using the algorithm, determines to take action:
+	- Having already sent Server4User KICK #chan Server1User, the following messages are sent to all users on each server:
+		- Server1User JOIN #chan
+		- Server1User MODE #chan +q Server1User (Or whatever op status they had before)
+		- Server1User KICK #chan Server4Use
+	- This server now has identical syncronization to servers 1 and 2, with the user from server 4 kicked out of the channel.
+
+Servers will determine sync issues by keeping a table of events which could possibly cause syncronization issues:
+- Kicks
+- Conflicting channel op changes
+- Nickname changes
+- Channel collisions (Two users create channel at same time)
+- Server QUIT messages
+
+When entires are added to the sync alert table, they are checked against existing entries. If a match is found, appropriate action or inaction is taken. This allows all processing to be done in one place. If a duplicate entry is found, add to top and delete old one.
+
+Sync alert table entry data structure:
+
+- Type of issue (kick, channel op, etc) and extra relevant information (like op flag)
+- Client pointers and strings of Source and Target (If applicible)
+- Channel involved, if any
+- Originating server, which can be remote or local
+
+The size of the table will be determined by a constant. Around 100 entires would be a good place to start testing. Hopefully in practice the table need not be huge to be effective, considering sync issues happen seconds apart. The table must be homogenous because issues of one type can affect issues of another (such as one user -qing a user who is kicking him)
+
+Determining if there is a match depends on the type of alert.
+- If it is a channel op or kick, the source and target are reversed and the table is searched for matching source and target. (E.G. Zeb kicks Dale, so I'll look for Dale having already kicked or de-opped Zeb)
+- If a channel is created, check for created channels in the alert table with the same name (unless channel is created on own server, obviously)
+- Any nickname changes from remote servers are checked against nickname changes in the alert table.
+
+4) Releasing server connections
+
+Servers will be dropped from the network if any of the following occur:
+- MESH SERVERSTATUS T/D message recieved and inactivity threshold has been reached
+- Server Operator issues SQUIT command or server process itself is shutdown/killed
+
+Mesh departs from traditional IRC in the way it handles server disconnects. Normally server disconnects are catastrophic, but in mesh they are divided:
+
+Category #1 - Server disconnects from an arbitrary amount of servers (almost always one) but stays connected to the others
+Category #2 - Server disconnects from all other servers
+
+Category 1 disconnects are potentially recoverable (see below, options 1 and 2) while 2 will result in the server being disconnected.
+
+Take the following scenario of 4 servers:
+
+- Server 1 is connected to 2, 3, and 4 but recieves a ECONNRESET socket error from 2. 2 Also recieves one from 1:
+
+1---X---2
+|  \  /	|
+|  /  \	|
+3-------4
+
+Option 1: Disconnect one of the servers from the mesh network and allow it to rejoin
+Option 2: Route messages through the "secondary" (indirect) connections while attempting primary link reconnection
+
+Option 1 is a simple approach but a pain for users. Hopefully this type of event will prove to be rare in practice.
+Both servers will eventually detect the disconnect.
+The algorithm dictates which one will send the notification to the network (So only 1 server drops instead of 2)
+This will allow the server to rejoin and there will be no synchronization issues. 
+
+Option 2 is more complex, basically involving all traffic from users on server 1 to users on server 2 to be routed elsewhere.
+For example, servers 3 and 4 would act on 2's behalf to relay messages from 1 to 2.
+
+For now I will use option 1. If it doesn't work out I will explore implementing option 2 in the future.
+
+7) MESH command
+
+This command will facilitate control of the mesh through server-server communication.
+
+MESH SERVERSTATUS <flag> <server id>
+
+Flags:
+T - Server timeout
+D - Disconnect (Connection reset by peer, broken pipe, etc)
+A - All servers successfully connected to <server id>
+
+Upon recieving a D server status, the server is to be disconnected immediately (option 1)
+
+Any commands related to the inactivity threshold assume it is the same throughout the network.
+
+Once a server (1) detects a ping timeout, it adds 1 to the current amount of server inactivity counts for server (2).
+If this number exceeds the inactivity threshold, it disconnects the server (2) to all local users.
+Whether the server (2) is disconnected or not, the server (1) will still send MESH SERVERSTATUS T <server (2) id> to all other servers.

@@ -1,0 +1,29 @@
+Exchange 5.5 login syntax (connect to computername not localhost):
+<display ip>\<Windows username>@
+XXX.XXX.XXX.XXX\Zeb@
+
+
+
+TODO's:
+- Add server linking as well as support for ring, star/linear, and mesh topologies
+- Update graphics
+- Proxy and wingate scanner, explore possibility of customizing the scanner such that you can add canned replies and expected responses
+- Expiration on bans
+- Keep track of changes and put it in red in the lower right corner, if possible
+- Figure out way to keep stats updated semi real-time on the RA tool. Correct all stats-related issues
+- Store passwords in encrypted form only, both on disk and in memory
+- Add support for cloneable channels
+
+
+
+Not started:
+int MP_Links() { return 0; }
+int MP_Pass() { return 0; }
+	
+Commands "not supported":
+int MP_Trace() { return 0; }
+int MP_Whowas() { return 0; }
+int MP_Stats() { return 0; }
+
+Command is disabled
+int MP_Users() { return 0; } 2284629

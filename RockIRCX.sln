@@ -1,0 +1,31 @@
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{537C9B0B-B318-4921-921A-825F9CACCD6B}"
+	ProjectSection(SolutionItems) = preProject
+		known issues.txt = known issues.txt
+		mesh notes.txt = mesh notes.txt
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RockIRCX", "RockIRCX\RockIRCX.vcxproj", "{D61F07C7-6284-47C9-B5AC-9B4CED9C12E1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RockIRCXRA", "RockIRCXRA\RockIRCXRA.vcxproj", "{844DA725-7F29-4809-AEF1-945492CCFA7E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D61F07C7-6284-47C9-B5AC-9B4CED9C12E1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D61F07C7-6284-47C9-B5AC-9B4CED9C12E1}.Debug|Win32.Build.0 = Debug|Win32
+		{D61F07C7-6284-47C9-B5AC-9B4CED9C12E1}.Release|Win32.ActiveCfg = Release|Win32
+		{D61F07C7-6284-47C9-B5AC-9B4CED9C12E1}.Release|Win32.Build.0 = Release|Win32
+		{844DA725-7F29-4809-AEF1-945492CCFA7E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{844DA725-7F29-4809-AEF1-945492CCFA7E}.Debug|Win32.Build.0 = Debug|Win32
+		{844DA725-7F29-4809-AEF1-945492CCFA7E}.Release|Win32.ActiveCfg = Release|Win32
+		{844DA725-7F29-4809-AEF1-945492CCFA7E}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
